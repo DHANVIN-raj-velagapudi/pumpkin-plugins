@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["hello-pumpkin", "pumpbans"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+# Path dependency for now: the plugin API is not published to crates.io, so it
+# is consumed straight from a checkout of the server repository.
+pumpkin-plugin-api = { path = "../Pumpkin-src/crates/pumpkin-plugin-api" }
+# The API routes `tracing` output to the server console over WIT.
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,86 @@
+name: Release
+
+# WebAssembly components are platform-independent, so one build covers every
+# server OS. This runs on a tagged version and on every push to main, the same
+# two-track pattern as the panel: tags are real releases, main keeps a rolling
+# "latest" build.
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pumpkin-plugins
+
+      # The plugin API is not published to crates.io, so it is built straight
+      # from a checkout of the server, the same way local development does.
+      # Its WIT interface definitions are a separate git submodule.
+      - name: Check out the Pumpkin server (for pumpkin-plugin-api)
+        run: |
+          git clone --depth 1 --recurse-submodules \
+            https://github.com/Pumpkin-MC/Pumpkin Pumpkin-src
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "pumpkin-plugins -> target"
+
+      - name: Build every plugin
+        working-directory: pumpkin-plugins
+        run: cargo build --release --target wasm32-wasip2 --workspace
+
+      - name: Collect the built components
+        working-directory: pumpkin-plugins
+        run: |
+          mkdir -p ../dist
+          cp target/wasm32-wasip2/release/*.wasm ../dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugins
+          path: dist/*.wasm
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugins
+          path: dist
+
+      - name: Release a version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.wasm
+          generate_release_notes: true
+
+      - name: Update the rolling latest build
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest build (main)"
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatically rebuilt from the latest commit on `main`:
+            ${{ github.sha }}
+
+            Development build. For a stable version, see the
+            [Releases page](../../releases) for a `v*` tag.
+          files: dist/*.wasm

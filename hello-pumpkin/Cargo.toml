@@ -1,0 +1,14 @@
+[package]
+name = "hello-pumpkin"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Minimal example Pumpkin plugin, used as a build-pipeline check."
+
+[lib]
+# Pumpkin loads plugins as WebAssembly components.
+crate-type = ["cdylib"]
+
+[dependencies]
+pumpkin-plugin-api.workspace = true
+tracing.workspace = true
