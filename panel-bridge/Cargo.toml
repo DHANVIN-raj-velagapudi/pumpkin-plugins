@@ -1,0 +1,17 @@
+[package]
+name = "panel-bridge"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Publishes live server status to a JSON file for external tools such as pumpkin-panel."
+
+[lib]
+# Pumpkin loads plugins as WebAssembly components. `rlib` lets the pure logic
+# be unit-tested natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pumpkin-plugin-api.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true

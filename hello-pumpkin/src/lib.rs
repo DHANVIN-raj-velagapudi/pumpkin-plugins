@@ -21,12 +21,12 @@ impl Plugin for HelloPumpkin {
         }
     }
 
-    fn on_load(&mut self, _context: Context) -> Result<()> {
+    fn on_load(&self, _context: Context) -> Result<()> {
         tracing::info!("hello-pumpkin loaded");
         Ok(())
     }
 
-    fn on_unload(&mut self, _context: Context) -> Result<()> {
+    fn on_unload(&self, _context: Context) -> Result<()> {
         tracing::info!("hello-pumpkin unloaded");
         Ok(())
     }

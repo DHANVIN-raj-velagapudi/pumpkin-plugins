@@ -1,15 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["hello-pumpkin", "pumpbans"]
+members = ["hello-pumpkin", "pumpbans", "panel-bridge", "homes"]
 
 [workspace.package]
 edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
-# Path dependency for now: the plugin API is not published to crates.io, so it
-# is consumed straight from a checkout of the server repository.
-pumpkin-plugin-api = { path = "../Pumpkin-src/crates/pumpkin-plugin-api" }
+# Published on crates.io; the version tracks the server it targets (0.2.0 is
+# 0.2.0+26.3-26.51, i.e. Minecraft 26.3). The plugin API is explicitly unstable
+# and has already changed shape between releases, so it is pinned exactly and
+# bumped deliberately alongside the server.
+pumpkin-plugin-api = "=0.2.0"
 # The API routes `tracing` output to the server console over WIT.
 tracing = "0.1"
 serde = { version = "1", features = ["derive"] }

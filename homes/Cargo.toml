@@ -1,0 +1,17 @@
+[package]
+name = "homes"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Per-player named homes: /sethome, /home, /delhome, /homes."
+
+[lib]
+# Pumpkin loads plugins as WebAssembly components. `rlib` lets the pure logic
+# be unit-tested natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pumpkin-plugin-api.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -14,6 +14,7 @@ mod store;
 use pumpkin_plugin_api::command::{
     Arg, ArgumentType, Command, CommandError, CommandNode, CommandSender, ConsumedArgs, StringType,
 };
+use pumpkin_plugin_api::permission::{Permission, PermissionDefault, PermissionLevel};
 use pumpkin_plugin_api::player::BanPlayerOptions;
 use pumpkin_plugin_api::text::TextComponent;
 use pumpkin_plugin_api::{
@@ -22,6 +23,18 @@ use pumpkin_plugin_api::{
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use store::{format_duration, now, parse_duration, Store, Warning};
+
+/// The plugin's name, which the server also uses as the namespace for every
+/// permission node it owns. Registering a node under any other namespace is
+/// refused and takes the whole plugin down at load, so the two must not drift
+/// apart. It is also the name of the data folder, which is why it keeps its
+/// capitals: renaming it would strand existing warnings.
+const NAME: &str = "PumpBans";
+
+/// The permission node for a command, e.g. `PumpBans:command.warn`.
+fn node(command: &str) -> String {
+    format!("{NAME}:command.{command}")
+}
 
 /// Learned from the context at load time.
 static DATA_FOLDER: OnceLock<PathBuf> = OnceLock::new();
@@ -63,8 +76,15 @@ fn reply(sender: &CommandSender, message: String) {
     sender.send_message(TextComponent::text(&message));
 }
 
-fn fail(message: &str) -> CommandError {
-    CommandError::CommandFailed(TextComponent::text(message))
+/// Tells the sender what went wrong and ends the command normally.
+///
+/// `CommandError::CommandFailed` looks like the right tool, but the server
+/// wraps it in a *parse* exception, so a moderator who simply mistyped a name
+/// sees `Syntax error: Unexpected "..."` instead of the message. `send_error`
+/// is the channel the server's own commands use for this.
+fn refuse(sender: &CommandSender, message: &str) -> Result<i32, CommandError> {
+    sender.send_error(TextComponent::text(message));
+    Ok(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -82,10 +102,13 @@ impl pumpkin_plugin_api::commands::CommandHandler for TempBan {
     ) -> Result<i32, CommandError> {
         let parts = words(&args, "args");
         let (Some(target), Some(duration)) = (parts.first(), parts.get(1)) else {
-            return Err(fail("Usage: /tempban <player> <duration> [reason]"));
+            return refuse(&sender, "Usage: /tempban <player> <duration> [reason]");
         };
 
-        let seconds = parse_duration(duration).map_err(|e| fail(&e))?;
+        let seconds = match parse_duration(duration) {
+            Ok(seconds) => seconds,
+            Err(problem) => return refuse(&sender, &problem),
+        };
         let reason = if parts.len() > 2 {
             parts[2..].join(" ")
         } else {
@@ -95,24 +118,21 @@ impl pumpkin_plugin_api::commands::CommandHandler for TempBan {
         // The ban goes through the server's own ban list, so expiry, kicking and
         // persistence are all handled where they already work.
         let Some(player) = server.get_player_by_name(target) else {
-            return Err(fail(&format!(
-                "{target} is not online. Offline bans need a UUID lookup, which is not wired up yet."
-            )));
+            return refuse(
+                &sender,
+                &format!(
+                    "{target} is not online. Offline bans need a UUID lookup, which is not wired up yet."
+                ),
+            );
         };
 
-        let mut options = BanPlayerOptions::temporary(
-            Some(TextComponent::text(&reason)),
-            seconds,
-        );
+        let mut options = BanPlayerOptions::temporary(Some(TextComponent::text(&reason)), seconds);
         options.source = Some(sender.get_name());
         player.ban(options);
 
         reply(
             &sender,
-            format!(
-                "Banned {target} for {}: {reason}",
-                format_duration(seconds)
-            ),
+            format!("Banned {target} for {}: {reason}", format_duration(seconds)),
         );
         Ok(1)
     }
@@ -133,14 +153,14 @@ impl pumpkin_plugin_api::commands::CommandHandler for Warn {
     ) -> Result<i32, CommandError> {
         let parts = words(&args, "args");
         let Some(target) = parts.first() else {
-            return Err(fail("Usage: /warn <player> <reason>"));
+            return refuse(&sender, "Usage: /warn <player> <reason>");
         };
         if parts.len() < 2 {
-            return Err(fail("A warning needs a reason."));
+            return refuse(&sender, "A warning needs a reason.");
         }
         let reason = parts[1..].join(" ");
 
-        let count = with_store(|store| {
+        let saved = with_store(|store| {
             store.warnings.push(Warning {
                 player: target.clone(),
                 reason: reason.clone(),
@@ -149,8 +169,11 @@ impl pumpkin_plugin_api::commands::CommandHandler for Warn {
             });
             let count = store.history(target).len();
             (count, true)
-        })
-        .map_err(|e| fail(&format!("Could not save the warning: {e}")))?;
+        });
+        let count = match saved {
+            Ok(count) => count,
+            Err(e) => return refuse(&sender, &format!("Could not save the warning: {e}")),
+        };
 
         reply(
             &sender,
@@ -184,10 +207,10 @@ impl pumpkin_plugin_api::commands::CommandHandler for History {
     ) -> Result<i32, CommandError> {
         let parts = words(&args, "args");
         let Some(target) = parts.first() else {
-            return Err(fail("Usage: /history <player>"));
+            return refuse(&sender, "Usage: /history <player>");
         };
 
-        let lines = with_store(|store| {
+        let read = with_store(|store| {
             let rendered: Vec<String> = store
                 .history(target)
                 .iter()
@@ -195,8 +218,11 @@ impl pumpkin_plugin_api::commands::CommandHandler for History {
                 .map(|w| format!("- {} by {}", w.reason, w.issued_by))
                 .collect();
             (rendered, false)
-        })
-        .map_err(|e| fail(&format!("Could not read the history: {e}")))?;
+        });
+        let lines = match read {
+            Ok(lines) => lines,
+            Err(e) => return refuse(&sender, &format!("Could not read the history: {e}")),
+        };
 
         if lines.is_empty() {
             reply(&sender, format!("{target} has no warnings."));
@@ -206,8 +232,41 @@ impl pumpkin_plugin_api::commands::CommandHandler for History {
                 reply(&sender, line);
             }
         }
-        reply(&sender, "Bans are in the server ban list; see /banlist.".to_string());
+        reply(
+            &sender,
+            "Bans are in the server ban list; see /banlist.".to_string(),
+        );
         Ok(1)
+    }
+}
+
+/// Declares a permission node, granted by default to operators of `level`.
+///
+/// This step is not optional. A node that was never registered resolves to
+/// "denied" for everyone but the console, so a command guarded by one would
+/// work from the terminal and be unusable in game, even for an op.
+fn declare(context: &Context, node: &str, description: &str, level: PermissionLevel) -> Result<()> {
+    context.register_permission(&Permission {
+        node: node.into(),
+        description: description.into(),
+        default: PermissionDefault::Op(level),
+        children: Vec::new(),
+    })
+}
+
+/// Runs when a command is typed with nothing after it. Without an executor on
+/// the root node the server answers "Unknown command", which sends a moderator
+/// hunting for a typo that is not there.
+struct Usage(&'static str);
+
+impl pumpkin_plugin_api::commands::CommandHandler for Usage {
+    fn handle(
+        &self,
+        sender: CommandSender,
+        _server: Server,
+        _args: ConsumedArgs,
+    ) -> Result<i32, CommandError> {
+        refuse(&sender, self.0)
     }
 }
 
@@ -229,7 +288,7 @@ impl Plugin for PumpBans {
 
     fn metadata(&self) -> PluginMetadata {
         PluginMetadata {
-            name: "PumpBans".into(),
+            name: NAME.into(),
             version: env!("CARGO_PKG_VERSION").into(),
             authors: vec!["Dhanvin".into()],
             description: "Temporary bans with durations, plus player warnings.".into(),
@@ -242,7 +301,7 @@ impl Plugin for PumpBans {
         }
     }
 
-    fn on_load(&mut self, context: Context) -> Result<()> {
+    fn on_load(&self, context: Context) -> Result<()> {
         let folder = PathBuf::from(context.get_data_folder());
         let _ = std::fs::create_dir_all(&folder);
         let _ = DATA_FOLDER.set(folder.clone());
@@ -254,25 +313,49 @@ impl Plugin for PumpBans {
         tracing::info!("loaded {} warning(s)", store.warnings.len());
         *STORE.lock().map_err(|e| e.to_string())? = Some(store);
 
-        // `then` returns nothing, so the command is built in steps rather than
-        // chained.
+        // Banning needs the admin tier; warning and reading history are
+        // moderator work. Server owners can re-point either with the usual
+        // permission commands.
+        declare(
+            &context,
+            &node("tempban"),
+            "Ban a player for a set duration",
+            PermissionLevel::Three,
+        )?;
+        declare(
+            &context,
+            &node("warn"),
+            "Warn a player",
+            PermissionLevel::Two,
+        )?;
+        declare(
+            &context,
+            &node("history"),
+            "View a player's warnings",
+            PermissionLevel::Two,
+        )?;
+
+        // `then` consumes the command and hands it back, so the tree chains.
         let tempban = Command::new(
             &["tempban".to_string()],
             "Ban a player for a set time, e.g. /tempban Steve 2h griefing",
-        );
-        tempban.then(greedy_arg().execute(TempBan));
-        context.register_command(tempban, "pumpbans:command.tempban");
+        )
+        .then(greedy_arg().execute(TempBan))
+        .execute(Usage("Usage: /tempban <player> <duration> [reason]"));
+        context.register_command(tempban, &node("tempban"));
 
-        let warn = Command::new(&["warn".to_string()], "Warn a player");
-        warn.then(greedy_arg().execute(Warn));
-        context.register_command(warn, "pumpbans:command.warn");
+        let warn = Command::new(&["warn".to_string()], "Warn a player")
+            .then(greedy_arg().execute(Warn))
+            .execute(Usage("Usage: /warn <player> <reason>"));
+        context.register_command(warn, &node("warn"));
 
         let history = Command::new(
             &["history".to_string(), "warnings".to_string()],
             "Show a player's warnings",
-        );
-        history.then(greedy_arg().execute(History));
-        context.register_command(history, "pumpbans:command.history");
+        )
+        .then(greedy_arg().execute(History))
+        .execute(Usage("Usage: /history <player>"));
+        context.register_command(history, &node("history"));
 
         tracing::info!("PumpBans ready");
         Ok(())
