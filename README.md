@@ -83,7 +83,7 @@ The pure logic (stores, parsing, JSON layout) is tested natively; the glue that 
 server needs a running server to exercise:
 
 ```bash
-cargo test --workspace
+cargo test --workspace --lib
 ```
 
 See [`docs/pumpkin-plugin-notes.md`](docs/pumpkin-plugin-notes.md) for API behaviour that is not

@@ -36,8 +36,11 @@ jobs:
 
       # The pure logic (stores, parsing, JSON layout) is tested natively; only
       # the glue that calls into the server needs a real server to exercise.
+      # `--lib` runs just the unit tests. A plain `cargo test` also links each
+      # plugin as a native shared library, which Linux rejects because the WIT
+      # export names contain `:` and `@`; the wasm build below is the real one.
       - name: Test
-        run: cargo test --workspace
+        run: cargo test --workspace --lib
 
       - name: Build every plugin
         run: cargo build --release --target wasm32-wasip2 --workspace
