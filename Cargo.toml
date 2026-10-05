@@ -4,7 +4,7 @@ members = ["hello-pumpkin", "pumpbans", "panel-bridge", "homes"]
 
 [workspace.package]
 edition = "2021"
-license = "MIT"
+license = "GPL-3.0-only"
 
 [workspace.dependencies]
 # Published on crates.io; the version tracks the server it targets (0.2.0 is

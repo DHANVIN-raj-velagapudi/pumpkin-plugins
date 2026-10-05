@@ -91,4 +91,9 @@ obvious from the docs.
 
 ## Licence
 
-MIT.
+[GPL-3.0-only](LICENSE), the same licence as the Pumpkin server.
+
+You can run, modify and redistribute these plugins, but a modified version you distribute must be
+offered under the GPL with its source. Running a modified copy on your own server, without handing
+it to anyone, carries no obligation. The Pumpkin plugin API these are built on is separately
+licensed `MIT OR Apache-2.0`, which is compatible.
