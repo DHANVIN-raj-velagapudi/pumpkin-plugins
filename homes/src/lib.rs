@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! homes — named homes for players.
 //!
 //! `/sethome [name]`, `/home [name]`, `/delhome [name]` and `/homes`. Leaving

@@ -45,15 +45,18 @@ jobs:
       - name: Build every plugin
         run: cargo build --release --target wasm32-wasip2 --workspace
 
+      # The AGPL requires the licence text to accompany every distributed
+      # binary, so it ships beside the plugins in each release.
       - name: Collect the built components
         run: |
           mkdir -p dist
           cp target/wasm32-wasip2/release/*.wasm dist/
+          cp LICENSE dist/
 
       - uses: actions/upload-artifact@v4
         with:
           name: plugins
-          path: dist/*.wasm
+          path: dist/*
           retention-days: 30
 
   release:
@@ -69,8 +72,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.wasm
+          files: dist/*
           generate_release_notes: true
+          body: |
+            Licensed under AGPL-3.0-only (`LICENSE` is attached).
+            Corresponding source: https://github.com/${{ github.repository }}/tree/${{ github.sha }}
 
       - name: Update the rolling latest build
         if: github.ref == 'refs/heads/main'
@@ -86,4 +92,7 @@ jobs:
 
             Development build. For a stable version, see the
             [Releases page](../../releases) for a `v*` tag.
-          files: dist/*.wasm
+
+            Licensed under AGPL-3.0-only (`LICENSE` is attached).
+            Corresponding source: https://github.com/${{ github.repository }}/tree/${{ github.sha }}
+          files: dist/*

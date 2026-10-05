@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! PumpBans — temporary bans and warnings for Pumpkin.
 //!
 //! Pumpkin can already ban a player for a fixed period: `BanPlayerOptions`

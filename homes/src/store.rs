@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! Home records and their storage.
 //!
 //! Everything here is plain data and rules, with no host calls, so the limits

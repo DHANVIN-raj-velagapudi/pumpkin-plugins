@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! Smallest possible Pumpkin plugin, used to prove the toolchain end to end.
 
 use pumpkin_plugin_api::{register_plugin, Context, Plugin, PluginMetadata, Result};

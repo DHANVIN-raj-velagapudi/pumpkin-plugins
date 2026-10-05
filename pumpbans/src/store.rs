@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! Warning records and their storage.
 //!
 //! Bans are deliberately *not* stored here. Pumpkin already keeps a ban list,

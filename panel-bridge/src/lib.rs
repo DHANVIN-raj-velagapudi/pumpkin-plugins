@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! panel-bridge — publishes live server state to a JSON file.
 //!
 //! A control panel sits outside the server process. It can start and stop

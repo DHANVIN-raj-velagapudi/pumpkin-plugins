@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Dhanvin Raj Velagapudi
 //! The status document and how it is written.
 //!
 //! Kept free of host calls so the shape can be tested natively: the panel
