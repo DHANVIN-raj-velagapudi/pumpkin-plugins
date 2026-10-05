@@ -91,9 +91,10 @@ obvious from the docs.
 
 ## Licence
 
-[GPL-3.0-only](LICENSE), the same licence as the Pumpkin server.
+[AGPL-3.0-only](LICENSE).
 
-You can run, modify and redistribute these plugins, but a modified version you distribute must be
-offered under the GPL with its source. Running a modified copy on your own server, without handing
-it to anyone, carries no obligation. The Pumpkin plugin API these are built on is separately
-licensed `MIT OR Apache-2.0`, which is compatible.
+You can run, modify and redistribute these plugins. If you modify one and run it on a server that
+players connect to, you must offer those players the modified source, even if you never hand the
+plugin to anyone. Running an unmodified copy carries no obligation. AGPL-3.0 is compatible with
+the Pumpkin server's GPL-3.0, and with the plugin API these are built on, which is licensed
+`MIT OR Apache-2.0`.
